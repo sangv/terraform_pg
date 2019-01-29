@@ -30,7 +30,7 @@ resource "aws_subnet" "public" {
 # Our default security group to access
 # the instances over SSH and HTTP
 resource "aws_security_group" "default" {
-  name        = "terraform_example"
+  name        = "terraform_vpc_example"
   description = "Used in the terraform"
   vpc_id      = "${aws_vpc.main.id}"
 
@@ -61,13 +61,32 @@ resource "aws_security_group" "default" {
 
 #https://github.com/terraform-providers/terraform-provider-aws/blob/master/examples/two-tier/main.tf
 
+resource "aws_security_group" "instance" {
+  name        = "terraform-example-instance"
+  vpc_id      = "${aws_vpc.main.id}"
+
+  # HTTP access from anywhere
+  ingress {
+    from_port   = 8080
+    to_port     = 8080
+    protocol    = "tcp"
+    cidr_blocks = ["0.0.0.0/0"]
+  }
+}
+
+
 resource "aws_instance" "example" {
 	ami = "ami-40d28157"
 	instance_type = "t2.micro"
-	vpc_security_group_ids = ["${aws_security_group.default.id}"]
+	vpc_security_group_ids = ["${aws_security_group.instance.id}"]
 	subnet_id = "${aws_subnet.public.id}"
   tags {
     Name = "terraform-example"
   }
+  user_data = <<-EOF
+              #!/bin/bash
+              echo "Hello, World" > index.html
+              nohup busybox httpd -f -p 8080 &
+              EOF
 }
 
